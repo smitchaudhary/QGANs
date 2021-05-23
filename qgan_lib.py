@@ -1,7 +1,7 @@
 import numpy as np
-from gates import *
-lr = 0.005
+from components import *
 
+lr = 0.005
 
 class Generator:
     """

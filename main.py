@@ -1,4 +1,5 @@
-from qgan_lib2 import *
+from qgan_lib import *
+from componets import *
 import numpy as np
 import matplotlib.pyplot as plt
 
