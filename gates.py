@@ -101,6 +101,10 @@ class Circuit:
     def append_gate(self, gate):
         self.gates.append(gate)
 
+    def randomize_angles(self):
+        for gate in self.gates:
+            gate.angle = 2*np.pi*np.random.random()
+
 def initial_state(n_qubits):
     state = np.zeros(2**n_qubits)
     state[0] = 1

@@ -121,4 +121,4 @@ def compute_cost(gen, dis, real_state):
     real_pauli_expec = np.asscalar(np.matmul( real_state.getH(), np.matmul(real_dis, real_state) ) )
     fake_pauli_expec = np.asscalar(np.matmul( fake_state.getH(), np.matmul(fake_dis, fake_state) ) )
 
-    return real_pauli_expec - fake_pauli_expec
+    return np.real(real_pauli_expec - fake_pauli_expec)

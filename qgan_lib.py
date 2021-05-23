@@ -78,7 +78,7 @@ class Discriminator:
         for pauli_index in range(4):
             for i in range(n_qubits):
                 for j in range(n_qubits):
-                    
+                    pass
 
 
 def real_circuit(n_qubits, theta):
