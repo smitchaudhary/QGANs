@@ -1,5 +1,7 @@
 import numpy as np
 from gates import *
+lr = 0.1
+
 
 class Generator:
     def __init__(self, n_qubits):
@@ -7,20 +9,20 @@ class Generator:
         self.circ = Circuit(n_qubits)
 
     def calculate_gradient(self, dis):
-        real_dis, fake_dis = real_and_fake_part(dis)
+        real_dis, fake_dis = dis.real_and_fake_part()
         init_state = initial_state(self.n_qubits)
-        fake_state = np.matmul(gen.circ.circ_matrix(), init_state)
+        fake_state = np.matmul(self.circ.circ_matrix(), init_state)
 
         gradients = []
 
         ans = []
 
         for gate_index in range(len(self.circ.gates)):
-            gradients.append(self.circ.grad_matrix())
+            gradients.append(self.circ.grad_matrix(gate_index))
 
         for grad_i in gradients:
             fake_grad = np.matmul( grad_i, init_state )
-            scal_grad = np.matmul( fake_grad.getH(), np.matmul( fake_dis, fake_states ) ) + np.matmul( fake_state.getH(), np.matmul( fake_dis, fake_grad ) )
+            scal_grad = np.matmul( fake_grad.getH(), np.matmul( fake_dis, fake_state ) ) + np.matmul( fake_state.getH(), np.matmul( fake_dis, fake_grad ) )
 
             ans.append(np.asscalar(scal_grad))
 
@@ -30,7 +32,7 @@ class Generator:
 
     def update_params(self, dis):
         gradients = self.calculate_gradient(dis)
-        for index, gate in self.circ.gates:
+        for index, gate in enumerate(self.circ.gates):
             gate.angle -= lr*gradients[index]
 
 class Discriminator:
@@ -45,28 +47,26 @@ class Discriminator:
             self.beta[i] = -1 + 2*np.random.random(4)
 
     def real_and_fake_part(self):
-        paulis = [I, X, Y, Z]
         real_dis = 1
         fake_dis = 1
-        for i in range(n_qubits):
+        for i in range(self.n_qubits):
             real = np.zeros_like(Y) # An array of zeros with size same as Y. Gave Y because data type complex
             fake = np.zeros_like(Y)
             for j in range(4):
-                real += alpha[i][j]*paulis[j]
-                fake += beta[i][j]*paulis[j]
+                real += self.alpha[i][j]*paulis[j]
+                fake += self.beta[i][j]*paulis[j]
             real_dis = np.kron(real_dis, real)
             fake_dis = np.kron(fake_dis, fake)
         return real_dis, fake_dis
 
     def grad_real_fake(self, pauli, real_bool = True):
-        paulis = [I, X, Y, Z]
         if real_bool:
             params = self.alpha
         else:
             params = self.beta
         ans = []
         for i in range(self.n_qubits):
-            ans_matrix = 1
+            ans_matrix = [1]
             for j in range(self.n_qubits):
                 if i == j:
                     mat = pauli
@@ -84,13 +84,12 @@ class Discriminator:
             state = real_state
             scal = 1
         else:
-            init_state = initial_state(n_qubits)
-            fake_state = np.matmul(gen.circ.circ_matrix(), init_state)
+            init_state = initial_state(self.n_qubits)
+            state = np.matmul(gen.circ.circ_matrix(), init_state)
             scal = -1
-        paulis = [I, X, Y, Z]
         ans = np.zeros_like(self.alpha, dtype = complex)
         for index, pauli in enumerate(paulis):
-            grads = self.grad_real_fake(type, real_bool)
+            grads = self.grad_real_fake(pauli, real_bool)
             grad_list = []
 
             for grad_i in grads:
@@ -114,8 +113,7 @@ def compute_cost(gen, dis, real_state):
     alpha = dis.alpha
     beta = dis.beta
     n_qubits = gen.n_qubits
-    paulis = [I, X, Y, Z]
-    real_dis, fake_dis = real_and_fake_part(dis)
+    real_dis, fake_dis = dis.real_and_fake_part()
 
     init_state = initial_state(n_qubits)
     fake_state = np.matmul(gen.circ.circ_matrix(), init_state)

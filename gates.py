@@ -9,6 +9,8 @@ Y = np.matrix([ [0, -1j],
 Z = np.matrix([ [1, 0],
                 [0, -1] ])
 
+paulis = [I, X, Y, Z]
+
 zero = np.matrix([ [1, 0],
                     [0, 0]] )
 one = np.matrix([[ 0, 0 ],
@@ -24,7 +26,8 @@ CNOT = np.matrix([[1, 0, 0, 0],
                   [0, 0, 1, 0]])
 
 def I_n(n):
-    return np.eye(2**n)
+    dim = int(2**n)
+    return np.eye(dim)
 
 def single_qubit_rotation(n_qubits, target_qubit, axis, angle = np.pi, grad = False):
     if grad == False:
@@ -50,8 +53,13 @@ def single_qubit_rotation(n_qubits, target_qubit, axis, angle = np.pi, grad = Fa
     return ans
 
 def full_CNOT(n_qubits, control, target, grad = False):
-    temp1 = np.kron( I_n(control), np.kron( zero, I_n(n_qubits - control - 1) ) )
-    temp2 = np.kron(I_n(control), np.kron(one, np.kron(I_n(target - control - 1), np.kron(X, I_n(n_qubits - target - 1)))))
+    a, b = min(control, target), max(control, target)
+    if a == control:
+        temp1 = np.kron( I_n(control), np.kron( zero, I_n(n_qubits - control - 1) ) )
+        temp2 = np.kron(I_n(control), np.kron(one, np.kron(I_n(target - control - 1), np.kron(X, I_n(n_qubits - target - 1)))))
+    else:
+        temp1 = np.kron( I_n(control), np.kron( zero, I_n(n_qubits - control - 1) ) )
+        temp2 = np.kron(I_n(target), np.kron(one, np.kron(I_n(target - control - 1), np.kron(X, I_n(n_qubits - control - 1)))))
     return temp1 + temp2
 
 class Gate:
@@ -62,8 +70,8 @@ class Gate:
         self.angle = angle
 
     def full_matrix(self, n_qubits, grad = False):
-        if self.id == 'X' or self.id == 'Y':
-            return 1j*single_qubit_rotation(n_qubits, self.target, self.id, grad = grad)
+        if self.id == 'X' or self.id == 'Z':
+            return 1j*single_qubit_rotation(n_qubits, self.target, self.id, angle = self.angle, grad = grad)
         if self.id =='CNOT':
             return full_CNOT(n_qubits, self.control, self.target, grad = grad)
 
@@ -83,11 +91,12 @@ class Circuit:
         ans = I_n(self.n_qubits)
         for index, gate in enumerate(self.gates):
             if index == gate_index:
-                mat = gate.full_matrix(n_qubits, grad = True)
+                mat = gate.full_matrix(self.n_qubits, grad = True)
                 ans = np.matmul(mat, ans)
             else:
-                mat = gate.full_matrix(n_qubits, grad = False)
+                mat = gate.full_matrix(self.n_qubits, grad = False)
                 ans = np.matmul(mat, ans)
+        return ans
 
     def append_gate(self, gate):
         self.gates.append(gate)
