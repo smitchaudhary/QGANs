@@ -1,7 +1,8 @@
 import numpy as np
 from components import *
 
-lr = 0.005
+lr_dis = 0.01
+lr_gen = 0.001
 
 class Generator:
     """
@@ -75,7 +76,7 @@ class Generator:
         """
         gradients = self.calculate_gradient(dis)
         for index, gate in enumerate(self.circ.gates):
-            gate.angle += lr*gradients[index]
+            gate.angle += lr_gen*gradients[index]
             #print(f' Gradient is {gradients[index]}')
 
 class Discriminator:
@@ -123,8 +124,8 @@ class Discriminator:
         for i in range(self.n_qubits):
             self.alpha[i] = -1 + 2*np.random.random(4)
             self.beta[i] = -1 + 2*np.random.random(4)
-        print(self.alpha)
-        print(self.beta)
+        #print(self.alpha)
+        #print(self.beta)
 
     def real_and_fake_part(self):
         """
@@ -207,11 +208,9 @@ class Discriminator:
         real_dis, fake_dis = self.real_and_fake_part()
         if real_bool:
             state = real_state
-            scal = 1
         else:
             init_state = initial_state(self.n_qubits)
             state = np.matmul(gen.circ.circ_matrix(), init_state)
-            scal = -1
         ans = np.zeros_like(self.alpha, dtype = complex)
         for index, pauli in enumerate(paulis):
             grads = self.grad_real_fake(pauli, real_bool)
@@ -222,7 +221,7 @@ class Discriminator:
 
             ans[:, index] = np.asarray(grad_list)
 
-        return np.around(scal*np.real(ans),6)
+        return np.around(np.real(ans),6)
 
     def update_params(self, gen, real_state):
         """
@@ -239,8 +238,8 @@ class Discriminator:
         -------
         None
         """
-        self.alpha -= lr*self.grad_alpha_beta(gen, real_state, real_bool = True)
-        self.beta +- lr*self.grad_alpha_beta(gen, real_state, real_bool = False)
+        self.alpha += lr_dis*self.grad_alpha_beta(gen, real_state, real_bool = True)
+        self.beta -= lr_dis*self.grad_alpha_beta(gen, real_state, real_bool = False)
         self.alpha = self.alpha/(np.max(np.abs(self.alpha)))
         self.beta = self.beta/(np.max(np.abs(self.beta)))
 

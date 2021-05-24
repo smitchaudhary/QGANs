@@ -53,7 +53,7 @@ def single_qubit_rotation(n_qubits, target_qubit, axis, angle = np.pi, grad = Fa
     """
     if grad == False:
         if axis == 'X':
-            #print(f' Angle is {angle}')
+            #(f' Angle is {angle}')
             rot = linalg.expm(-0.5j*angle*X)
         elif axis == 'Y':
             rot = linalg.expm(-0.5j*angle*Y)
@@ -252,7 +252,7 @@ class Circuit:
         """
         for gate in self.gates:
             gate.angle = 2*np.pi*np.random.random()
-            print(gate.angle)
+            #print(gate.angle)
         print('Randomization done')
 
 def initial_state(n_qubits):

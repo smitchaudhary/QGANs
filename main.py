@@ -1,11 +1,11 @@
 from qgan_lib import *
-from componets import *
+from components import *
 import numpy as np
 import matplotlib.pyplot as plt
 
 print(f'Setting up hyper parameters')
 epochs = 30000
-n_qubits = 2
+n_qubits = 1
 gen_dis_ratio = 1
 
 def construct_qcbm(circuit, n_qubits, depth):
@@ -34,16 +34,16 @@ def construct_qcbm(circuit, n_qubits, depth):
         if n_qubits != 1:
             for i in range(n_qubits):
                 circuit.append_gate(Gate('CNOT', control = i, target = (i+1)%n_qubits))
-        for gate in circuit.gates:
-            print(gate.angle)
+        #for gate in circuit.gates:
+            #print(gate.angle)
     return circuit
 
 init_state = initial_state(n_qubits)
 
 real_circuit = Circuit(n_qubits)
 real_circuit = construct_qcbm(real_circuit, n_qubits, 1)
-for gate in real_circuit.gates:
-    gate.angle = np.pi/2
+#for gate in real_circuit.gates:
+#    gate.angle = np.pi/2
 real_state = np.matmul(real_circuit.circ_matrix(),init_state)
 
 gen = Generator(n_qubits)
@@ -57,11 +57,11 @@ fid = fidelity(gen, real_state)
 loss_list = []
 fid_list = []
 
-while fid > 0.9 or fid < 0.15:
+while fid > 0.9 or fid < 0.65:
     gen.circ.randomize_angles()
     fid = fidelity(gen, real_state)
     print(f'Resetting angles because bad intialisation')
-
+print(fid)
 print('Starting training')
 for iteration in range(epochs):
     #print(f'Iteration number {iteration + 1}')
