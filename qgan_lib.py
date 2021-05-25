@@ -1,8 +1,8 @@
 import numpy as np
 from components import *
 
-lr_dis = 0.01
-lr_gen = 0.001
+lr_dis = 0.05
+lr_gen = 0.01
 
 class Generator:
     """
@@ -48,8 +48,10 @@ class Generator:
 
         ans = []
 
-        for gate_index in range(len(self.circ.gates)):
-            gradients.append(self.circ.grad_matrix(gate_index))
+        for gate in self.circ.gates:
+            if gate.id == 'CNOT':
+                continue
+            gradients.append(self.circ.grad_matrix(gate))
 
         for grad_i in gradients:
             fake_grad = np.matmul( grad_i, init_state )
@@ -75,8 +77,15 @@ class Generator:
         None
         """
         gradients = self.calculate_gradient(dis)
-        for index, gate in enumerate(self.circ.gates):
+        index = 0
+        for gate in self.circ.gates:
+            if gate.id == 'CNOT':
+                continue
+            #print(f'Angle before is {gate.angle}')
             gate.angle += lr_gen*gradients[index]
+            #print(f'Angle after is {gate.angle}')
+            index += 1
+        #print('Next update')
             #print(f' Gradient is {gradients[index]}')
 
 class Discriminator:
@@ -239,7 +248,7 @@ class Discriminator:
         None
         """
         self.alpha += lr_dis*self.grad_alpha_beta(gen, real_state, real_bool = True)
-        self.beta -= lr_dis*self.grad_alpha_beta(gen, real_state, real_bool = False)
+        self.beta += lr_dis*self.grad_alpha_beta(gen, real_state, real_bool = True)
         self.alpha = self.alpha/(np.max(np.abs(self.alpha)))
         self.beta = self.beta/(np.max(np.abs(self.beta)))
 
@@ -294,3 +303,34 @@ def compute_cost(gen, dis, real_state):
     fake_pauli_expec = np.matmul( fake_state.getH(), np.matmul(fake_dis, fake_state) ).item()
 
     return np.real(real_pauli_expec - fake_pauli_expec)
+
+def gen_cost(gen, dis, real_state):
+    """
+    Computes cost.
+
+    Parameters
+    ----------
+    gen : Generator
+        The Generator of the GAN.
+    dis : Discriminator
+        The Discriminator of the GAN.
+    real_state : np.ndarray
+        The real state.
+
+    Returns
+    -------
+     : float
+        The cost
+    """
+    alpha = dis.alpha
+    beta = dis.beta
+    n_qubits = gen.n_qubits
+    real_dis, fake_dis = dis.real_and_fake_part()
+
+    init_state = initial_state(n_qubits)
+    fake_state = np.matmul(gen.circ.circ_matrix(), init_state)
+
+    #real_pauli_expec = np.matmul( real_state.getH(), np.matmul(real_dis, real_state) ).item()
+    fake_pauli_expec = np.matmul( fake_state.getH(), np.matmul(fake_dis, fake_state) ).item()
+
+    return np.real(fake_pauli_expec)

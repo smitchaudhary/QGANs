@@ -200,14 +200,14 @@ class Circuit:
 
         return np.asmatrix(ans)
 
-    def grad_matrix(self, gate_index):
+    def grad_matrix(self, param_gate):
         """
         Gives the full 2**n x 2**n matrix for the gradient of the circuit.
 
         Parameters
         ----------
-        gate_index : int
-            Index of the gate with respect ot whose paramter the gradient is taken.
+        param_gate : Gate
+            Parametric gate with respect to whose paramter the gradient is taken.
 
         Returns
         -------
@@ -215,8 +215,8 @@ class Circuit:
             Gives the full 2**n x 2**n matrix for the circuit.
         """
         ans = I_n(self.n_qubits)
-        for index, gate in enumerate(self.gates):
-            if index == gate_index:
+        for gate in self.gates:
+            if gate == param_gate:
                 mat = gate.full_matrix(self.n_qubits, grad = True)
                 ans = np.matmul(mat, ans)
             else:
