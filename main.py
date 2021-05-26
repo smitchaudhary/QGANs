@@ -58,9 +58,9 @@ loss_list = []
 gen_loss_list = []
 fid_list = []
 
-print('The fake circuit has starting parameters:')
-for gate in gen.circ.gates:
-    print(gate.angle)
+#print('The fake circuit has starting parameters:')
+#for gate in gen.circ.gates:
+#    print(gate.angle)
 print('Initiail fidelity is', fid)
 print('Starting training')
 tic = time.time()
@@ -82,7 +82,7 @@ for iteration in range(epochs):
         print()
         print(f'Iteration number {iteration + 1}, cost is {cost}, fidelity is {fid}')
 toc = time.time()
-print(toc - tic)
+#print(toc - tic)
 #print('The fake circuit has final parameters:')
 #for gate in gen.circ.gates:
 #    print(gate.angle)
