@@ -279,7 +279,7 @@ def compute_cost(gen, dis, real_state):
 
     return np.real(real_pauli_expec - fake_pauli_expec)
 
-def gen_cost(gen, dis, real_state):
+def gen_cost(gen, dis):
     """
     Computes cost.
 
