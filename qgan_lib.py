@@ -1,7 +1,7 @@
 import numpy as np
 from components import *
 
-lr_dis = 0.05
+lr_dis = 0.01
 lr_gen = 0.01
 
 class Generator:
@@ -40,7 +40,8 @@ class Generator:
         grad : np.ndarray
             Gradient of the circuit.
         """
-        real_dis, fake_dis = dis.real_and_fake_part()
+        weig_pauli = dis.weighted_paulis()
+
         init_state = initial_state(self.n_qubits)
         fake_state = np.matmul(self.circ.circ_matrix(), init_state)
 
@@ -55,7 +56,7 @@ class Generator:
 
         for grad_i in gradients:
             fake_grad = np.matmul( grad_i, init_state )
-            scal_grad = np.matmul( fake_grad.getH(), np.matmul( fake_dis, fake_state ) ) + np.matmul( fake_state.getH(), np.matmul( fake_dis, fake_grad ) )
+            scal_grad = np.matmul( fake_grad.getH(), np.matmul( weig_pauli, fake_state ) ) + np.matmul( fake_state.getH(), np.matmul( weig_pauli, fake_grad ) )
 
             ans.append(scal_grad.item())
 
@@ -81,12 +82,8 @@ class Generator:
         for gate in self.circ.gates:
             if gate.id == 'CNOT':
                 continue
-            #print(f'Angle before is {gate.angle}')
             gate.angle += lr_gen*gradients[index]
-            #print(f'Angle after is {gate.angle}')
             index += 1
-        #print('Next update')
-            #print(f' Gradient is {gradients[index]}')
 
 class Discriminator:
     """
@@ -98,30 +95,27 @@ class Discriminator:
         Number of qubits in the system.
     alpha : np.ndarray
         The weights of Paulis for real state
-    beta : np.ndarray
-        The weights of Paulis for fake state
 
     Methods
     -------
     randomize_disc :
-        Randomizes alphas and betas
-    real_and_fake_part :
-        Returns real and fake weighted Pauli strings.
-    grad_real_fake :
-        Returns gradients of real and fake weighted paulis.
-    grad_alpha_beta :
-        Gradient with respect to alphas and betas.
+        Randomizes the parameters alphas
+    weighted_paulis :
+        Returns the full matrix for weighted Pauli strings.
+    grad_pauli :
+        Returns gradients with respect to one of the 4 paulis.
+    grad_alpha :
+        Gradient with respect to alphas.
     update_params :
         Update parameters of the Discriminator.
     """
     def __init__(self, n_qubits):
         self.n_qubits = n_qubits
         self.alpha = np.zeros((n_qubits, 4))
-        self.beta = np.zeros((n_qubits, 4))
 
     def randomize_disc(self):
         """
-        Randomizes alphas and betas
+        Randomizes the parameters alphas
 
         Parameters
         ----------
@@ -132,56 +126,42 @@ class Discriminator:
         """
         for i in range(self.n_qubits):
             self.alpha[i] = -1 + 2*np.random.random(4)
-            self.beta[i] = -1 + 2*np.random.random(4)
-        #print(self.alpha)
-        #print(self.beta)
 
-    def real_and_fake_part(self):
+    def weighted_paulis(self):
         """
-        Returns real and fake weighted Pauli strings.
+        Returns the full matrix for weighted Pauli strings.
 
         Parameters
         ----------
 
         Returns
         -------
-        real_dis : np.ndarray
-            Weighted real Pauli string
-        fake_dis : np.ndarray
-            Weighted fake Pauli string
+        ans : np.ndarray
+            Full matrix for the weighted Pauli strings
         """
-        real_dis = 1
-        fake_dis = 1
+        ans = 1
         for i in range(self.n_qubits):
-            real = np.zeros_like(Y) # An array of zeros with size same as Y. Gave Y because data type complex
-            fake = np.zeros_like(Y)
+            mat = np.zeros_like(Y) # An array of zeros with size same as Y. Gave Y because data type complex
             for j in range(4):
-                real += self.alpha[i][j]*paulis[j]
-                fake += self.beta[i][j]*paulis[j]
-            real_dis = np.kron(real_dis, real)
-            fake_dis = np.kron(fake_dis, fake)
-        return real_dis, fake_dis
+                mat += self.alpha[i][j]*paulis[j]
+            ans = np.kron(ans, mat)
+        return ans
 
-    def grad_real_fake(self, pauli, real_bool = True):
+    def grad_pauli(self, pauli):
         """
-        Returns gradients of real and fake weighted paulis.
+        Returns gradients with respect to one of the 4 paulis.
 
         Parameters
         ----------
         pauli : np.ndarray
             One of the 4 Pauli gates.
-        real_bool = bool
-            True if we want gradient wrt real, False for fake. Defaults to True.
 
         Returns
         -------
-        ans : np.ndarray
-            Gradient with respect to real or fake
+        ans : list
+            Returns matrices with gradients with respect to parameters of the given Pauli.
         """
-        if real_bool:
-            params = self.alpha
-        else:
-            params = self.beta
+        params = self.alpha
         ans = []
         for i in range(self.n_qubits):
             ans_matrix = [1]
@@ -196,9 +176,9 @@ class Discriminator:
             ans.append(ans_matrix)
         return ans
 
-    def grad_alpha_beta(self, gen, real_state, real_bool = True):
+    def grad_alpha(self, gen, real_state):
         """
-        Gradient with respect to alphas or betas.
+        Gradient with respect to alphas.
 
         Parameters
         ----------
@@ -206,26 +186,24 @@ class Discriminator:
             The Generator of the GAN.
         real_state : np.ndarray
             The real state.
-        real_bool = bool
-            True if we want gradient wrt alphas, False for betas. Defaults to True.
 
         Returns
         -------
         ans : np.ndarray
-            Gradient with respect to alphas or betas
+            Gradient with respect to alphas.
         """
-        real_dis, fake_dis = self.real_and_fake_part()
-        if real_bool:
-            state = real_state
-        else:
-            init_state = initial_state(self.n_qubits)
-            state = np.matmul(gen.circ.circ_matrix(), init_state)
+        weig_pauli = self.weighted_paulis()
+        init_state = initial_state(self.n_qubits)
+        fake_state = np.matmul(gen.circ.circ_matrix(), init_state)
+        state = real_state - fake_state
         ans = np.zeros_like(self.alpha, dtype = complex)
         for index, pauli in enumerate(paulis):
-            grads = self.grad_real_fake(pauli, real_bool)
+            grads = self.grad_pauli(pauli)
             grad_list = []
 
             for grad_i in grads:
+                rl = np.matmul(real_state.getH(), np.matmul(grad_i, real_state) ).item()
+                fk = np.matmul(fake_state.getH(), np.matmul(grad_i, fake_state) ).item()
                 grad_list.append(np.matmul(state.getH(), np.matmul(grad_i, state) ).item() )
 
             ans[:, index] = np.asarray(grad_list)
@@ -247,10 +225,8 @@ class Discriminator:
         -------
         None
         """
-        self.alpha += lr_dis*self.grad_alpha_beta(gen, real_state, real_bool = True)
-        self.beta += lr_dis*self.grad_alpha_beta(gen, real_state, real_bool = True)
+        self.alpha += lr_dis*self.grad_alpha(gen, real_state)
         self.alpha = self.alpha/(np.max(np.abs(self.alpha)))
-        self.beta = self.beta/(np.max(np.abs(self.beta)))
 
 
 def fidelity(gen, real_state):
@@ -292,15 +268,14 @@ def compute_cost(gen, dis, real_state):
         The cost
     """
     alpha = dis.alpha
-    beta = dis.beta
     n_qubits = gen.n_qubits
-    real_dis, fake_dis = dis.real_and_fake_part()
+    weig_pauli = dis.weighted_paulis()
 
     init_state = initial_state(n_qubits)
     fake_state = np.matmul(gen.circ.circ_matrix(), init_state)
 
-    real_pauli_expec = np.matmul( real_state.getH(), np.matmul(real_dis, real_state) ).item()
-    fake_pauli_expec = np.matmul( fake_state.getH(), np.matmul(fake_dis, fake_state) ).item()
+    real_pauli_expec = np.matmul( real_state.getH(), np.matmul(weig_pauli, real_state) ).item()
+    fake_pauli_expec = np.matmul( fake_state.getH(), np.matmul(weig_pauli, fake_state) ).item()
 
     return np.real(real_pauli_expec - fake_pauli_expec)
 
@@ -323,14 +298,12 @@ def gen_cost(gen, dis, real_state):
         The cost
     """
     alpha = dis.alpha
-    beta = dis.beta
     n_qubits = gen.n_qubits
-    real_dis, fake_dis = dis.real_and_fake_part()
+    weig_pauli = dis.weighted_paulis()
 
     init_state = initial_state(n_qubits)
     fake_state = np.matmul(gen.circ.circ_matrix(), init_state)
 
-    #real_pauli_expec = np.matmul( real_state.getH(), np.matmul(real_dis, real_state) ).item()
-    fake_pauli_expec = np.matmul( fake_state.getH(), np.matmul(fake_dis, fake_state) ).item()
+    fake_pauli_expec = np.matmul( fake_state.getH(), np.matmul(weig_pauli, fake_state) ).item()
 
     return np.real(fake_pauli_expec)

@@ -48,7 +48,7 @@ for gate in real_circuit.gates:
 real_state = np.matmul(real_circuit.circ_matrix(),init_state)
 
 gen = Generator(n_qubits)
-gen.circ = construct_qcbm(gen.circ, n_qubits, 1)
+gen.circ = construct_qcbm(gen.circ, n_qubits, 2)
 
 
 
@@ -61,10 +61,10 @@ loss_list = []
 gen_loss_list = []
 fid_list = []
 
-while fid > 0.2:# or fid < 0.15:
-    gen.circ.randomize_angles()
-    fid = fidelity(gen, real_state)
-    print(f'Resetting angles because bad intialisation')
+#while fid > 0.2:# or fid < 0.15:
+#    gen.circ.randomize_angles()
+#    fid = fidelity(gen, real_state)
+#    print(f'Resetting angles because bad intialisation')
 print('The fake circuit has starting parameters:')
 for gate in gen.circ.gates:
     print(gate.angle)
